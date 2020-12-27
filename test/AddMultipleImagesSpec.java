@@ -1,3 +1,4 @@
+import controller.Permission;
 import controller.RepoFunction;
 import controller.Response;
 import controller.Util;
@@ -76,7 +77,7 @@ public class AddMultipleImagesSpec {
     @Test
     public void addMultipleImages() {
         log.test("Adding Multiple Images");
-        Response resp = rf.addMultipleImages(images, "sohan42");
+        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC);
         Assert.assertEquals(200, resp.code);
         log.test(resp.body);
     }
@@ -85,7 +86,7 @@ public class AddMultipleImagesSpec {
     public void addMultipleImagesWithOneNull() {
         log.test("Adding Multiple Images With One Null Image");
         images[images.length - 1] = null;
-        Response resp = rf.addMultipleImages(images, "sohan42");
+        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }

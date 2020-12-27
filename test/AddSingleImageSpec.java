@@ -1,3 +1,4 @@
+import controller.Permission;
 import controller.RepoFunction;
 import controller.Response;
 import controller.Util;
@@ -68,7 +69,7 @@ public class AddSingleImageSpec {
     @Test
     public void addNullImage() {
         log.test("Adding Null Image");
-        Response resp = rf.addSingleImage(null, "sohan42");
+        Response resp = rf.addSingleImage(null, "sohan42", Permission.PUBLIC);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
@@ -76,7 +77,7 @@ public class AddSingleImageSpec {
     @Test
     public void addSingleImage() {
         log.test("Adding Single Image");
-        Response resp = rf.addSingleImage(singleImg, "sohan42");
+        Response resp = rf.addSingleImage(singleImg, "sohan42", Permission.PUBLIC);
         Assert.assertEquals(200, resp.code);
         log.test(resp.body);
     }
