@@ -2,6 +2,7 @@ import controller.Permission;
 import controller.RepoFunction;
 import controller.Response;
 import controller.Util;
+import login.User;
 import org.junit.*;
 
 import javax.imageio.ImageIO;
@@ -13,11 +14,15 @@ public class AddMultipleImagesSpec {
     private static Util log;
     private static RepoFunction rf;
     private static BufferedImage[] images;
+    private static String[] characteristics;
 
     @BeforeClass
     public static void before() {
         log = new Util();
         log.test("Before: Add Multiple Images Spec");
+        characteristics = new String[2];
+        characteristics[1] = "cartoon";
+        characteristics[2] = "colorful";
         File imagesDir = new File("test/images");
         int length = imagesDir.list().length - 1;
         images = new BufferedImage[length];
@@ -41,12 +46,11 @@ public class AddMultipleImagesSpec {
         log.test("--Starting Next Test");
         rf = new RepoFunction();
         try {
-            File dir = new File("src/data/sohan42");
-            dir.mkdir();
-            File images = new File(dir + "/images");
-            images.mkdir();
+            User user = new User("sohan42", "Sohan1234*", "Sohan");
+            Response resp = user.createUser();
+            log.test(resp.body);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
     }
 
@@ -77,7 +81,7 @@ public class AddMultipleImagesSpec {
     @Test
     public void addMultipleImages() {
         log.test("Adding Multiple Images");
-        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC);
+        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC, characteristics);
         Assert.assertEquals(200, resp.code);
         log.test(resp.body);
     }
@@ -86,7 +90,7 @@ public class AddMultipleImagesSpec {
     public void addMultipleImagesWithOneNull() {
         log.test("Adding Multiple Images With One Null Image");
         images[images.length - 1] = null;
-        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC);
+        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC, characteristics);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }

@@ -9,7 +9,7 @@ import java.io.IOException;
 public class RepoFunction implements IRepoFunction{
 
     @Override
-    public Response addSingleImage(BufferedImage img, String username, Permission permission) {
+    public Response addSingleImage(BufferedImage img, String username, Permission permission, String[] characteristics) {
         Response resp = new Response();
         if (img == null) {
             resp.code = 400;
@@ -41,7 +41,7 @@ public class RepoFunction implements IRepoFunction{
                             default:
                                 access = "";
                         }
-                        writeDetails(detailsPath, username, order, access);
+                        writeDetails(detailsPath, username, order, access, characteristics);
                         resp.code = 200;
                         resp.body = "Image Successfully Uploaded";
                     } else {
@@ -62,22 +62,31 @@ public class RepoFunction implements IRepoFunction{
         return resp;
     }
 
-    private void writeDetails(String path, String username, String order, String access) throws IOException {
+    private void writeDetails(String path, String username, String order, String access, String[] characteristics) throws IOException {
         FileWriter writer = new FileWriter(path);
         writer.write(username);
         writer.write("\r\n");
         writer.write(order);
         writer.write("\r\n");
         writer.write(access);
+        writer.write("\r\n");
+        String tags = "";
+        for (int i = 0; i < characteristics.length; i++) {
+            tags = tags + characteristics[i];
+            if (i != characteristics.length - 1) {
+                tags = tags + ",";
+            }
+        }
+        writer.write(tags);
         writer.close();
     }
 
     @Override
-    public Response addMultipleImages(BufferedImage[] images, String username, Permission permission) {
+    public Response addMultipleImages(BufferedImage[] images, String username, Permission permission, String[] characteristics) {
         Response finalResp = new Response();
         int count = 1;
         for (BufferedImage img : images) {
-            Response resp = addSingleImage(img, username, permission);
+            Response resp = addSingleImage(img, username, permission, characteristics);
             if (resp.code == 400) {
                 finalResp.code = resp.code;
                 finalResp.body = resp.body;
