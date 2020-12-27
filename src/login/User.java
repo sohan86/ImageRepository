@@ -5,6 +5,7 @@ import controller.Response;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.*;
 
 public class User {
 
@@ -18,7 +19,7 @@ public class User {
         this.name = name;
     }
 
-    public Response createUser() {
+    public Response createUser(Connection connection) {
         Response resp = new Response();
         if (isNumberInString(this.name)) {
             resp.code = 400;
@@ -32,61 +33,28 @@ public class User {
         } else if (this.password.isBlank()) {
             resp.code = 400;
             resp.body = "User cannot be created, blank password";
-        } else if (isIdentical(this.username)) {
-            resp.code = 400;
-            resp.body = "User cannot be created, identical username";
         } else {
-            File userFile = new File("src/data/" + this.username);
+            String query = "insert into users (username, password, full_name)"
+                    + "values (?, ?, ?)";
             try {
-                boolean boolUser = userFile.mkdir();
-                if (boolUser) {
-                    File imagesFile = new File(userFile + "/images");
-                    File userDetails = new File(userFile + "/details.txt");
-                    try {
-                        boolean boolImages = imagesFile.mkdir();
-                        boolean boolDetails = userDetails.createNewFile();
-                        if (boolImages & boolDetails) {
-                            resp.code = 200;
-                            resp.body = "User successfully created";
-                            writeDetails(userFile+"/details.txt", this.username, this.password, this.name);
-                        } else {
-                            resp.code = 400;
-                            resp.body = "User file could not be created";
-                        }
-                    } catch (Exception e) {
-                        resp.code = 200;
-                        resp.body = e.getMessage();
-                    }
-                } else {
-                    resp.code = 400;
-                    resp.body = "User file could not be created";
-                }
-            } catch (Exception e) {
+                PreparedStatement preparedStmt = connection.prepareStatement(query);
+                preparedStmt.setString(1, this.username);
+                preparedStmt.setString(2, this.password);
+                preparedStmt.setString(3, this.name);
+                preparedStmt.execute();
                 resp.code = 200;
-                resp.body = e.getMessage();
+                resp.body = "User created successfully";
+            } catch (SQLException e) {
+                resp.code = 400;
+                if (e instanceof SQLIntegrityConstraintViolationException) {
+                    resp.body = "User already created with same username, try another username";
+                } else {
+                    resp.body = e.getMessage();
+                }
             }
+
         }
         return resp;
-    }
-
-    private void writeDetails(String path, String username, String password, String name) throws IOException {
-        FileWriter writer = new FileWriter(path);
-        writer.write(name);
-        writer.write("\r\n");
-        writer.write(username);
-        writer.write("\r\n");
-        writer.write(password);
-        writer.close();
-    }
-
-    private boolean isIdentical(String username) {
-        File dir = new File("src/data");
-        for (File subFile : dir.listFiles()) {
-            if (subFile.getName().equals(username)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private boolean isNumberInString(String name) {
@@ -111,5 +79,32 @@ public class User {
         return name;
     }
 
+    public void setUser(String username, String password, Connection connection, User user) {
+        String databaseUsername = "";
+        String databasePassword = "";
+        String databaseName = "";
+        String query = "SELECT * FROM users WHERE username='" + username + "' && password='" + password+ "'";
+        try {
+            PreparedStatement preparedStmt = connection.prepareStatement(query);
+            ResultSet rs = preparedStmt.executeQuery();
+
+            while (rs.next()) {
+                databaseUsername = rs.getString("username");
+                databasePassword = rs.getString("password");
+                databaseName = rs.getString("full_name");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        user.setUsername(databaseUsername);
+        user.setPassword(databasePassword);
+        user.setName(databaseName);
+    }
+
+    public void setUsername (String username) {this.username = username;}
+
+    public void setPassword (String password) {this.password = password;}
+
+    public void setName (String name) {this.name = name;}
 }
 

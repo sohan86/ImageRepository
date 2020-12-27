@@ -6,39 +6,45 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class Login {
 
-    public Response login (String username, String password) {
+    public Response login (String username, String password, Connection connection) {
+        String databaseUsername = "";
+        String databasePassword = "";
         Response resp = new Response();
-        File dir = new File("src/data");
-        if (dir.list().length == 0) {
-            resp.code = 400;
-            resp.body = "No users created";
-        } else {
-            for (File subFile : dir.listFiles()) {
-                if (subFile.getName().equals(username)) {
-                    String path = "src/data/" + username + "/details.txt";
-                    try {
-                        String realPassword = Files.readAllLines(Paths.get(path)).get(2);
-                        if (password.equals(realPassword)) {
-                            resp.code = 202;
-                            resp.body = "Login Successful";
-                        } else {
-                            resp.code = 400;
-                            resp.body = "Password does not match";
-                        }
-                    } catch (IOException e) {
-                        resp.code = 400;
-                        resp.body = e.getMessage();
-                    }
-                } else {
-                    resp.code = 400;
-                    resp.body = "No user with this username";
-                }
+        String query = "SELECT * FROM users WHERE username='" + username + "' && password='" + password+ "'";
+
+        try {
+            PreparedStatement preparedStmt = connection.prepareStatement(query);
+            ResultSet rs = preparedStmt.executeQuery();
+
+            while (rs.next()) {
+                databaseUsername = rs.getString("username");
+                databasePassword = rs.getString("password");
+
             }
+            if (username.equals(databaseUsername) && password.equals(databasePassword)) {
+                resp.code = 202;
+                resp.body = "Logged In Successfully";
+            } else {
+                resp.code = 400;
+                resp.body = "Invalid Username or Password";
+            }
+        } catch (SQLException e) {
+            resp.code = 400;
+            resp.body = e.getMessage();
         }
         return resp;
     }
 
+    public void logout(User user) {
+        user.setUsername("");
+        user.setPassword("");
+        user.setName("");
+    }
 }

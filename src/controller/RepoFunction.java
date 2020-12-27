@@ -5,126 +5,68 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.sql.*;
 
 public class RepoFunction implements IRepoFunction{
 
     @Override
-    public Response addSingleImage(BufferedImage img, String username, Permission permission, String[] characteristics) {
+    public Response addSingleImage(InputStream path, String username, Permission permission,
+                                   String[] characteristics, Connection connection) {
         Response resp = new Response();
-        if (img == null) {
+        String query = "insert into images (username, access, img)"
+                + "values (?, ?, ?)";
+        try {
+            PreparedStatement preparedStmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            preparedStmt.setString(1, username);
+            preparedStmt.setString(2, String.valueOf(permission));
+            preparedStmt.setBlob(3, path);
+            preparedStmt.executeUpdate();
+            addCharacteristics(preparedStmt, characteristics, connection);
+            resp.code = 200;
+            resp.body = "Image Added Successfully";
+        } catch (SQLException e) {
             resp.code = 400;
-            resp.body = "Null Image Added";
-        } else {
-            try {
-                String path = "src/data/" + username + "/images";
-                File dirImages = new File(path);
-                int count = dirImages.list().length + 1;
-                String order = Integer.toString(count);
-                path = path + "/" + order;
-                File imageDir = new File(path);
-                boolean boolImageDir = imageDir.mkdir();
-                if (boolImageDir) {
-                    String imagePath = path + "/" + order + ".png";
-                    ImageIO.write(img, "jpg", new File(imagePath));
-                    String detailsPath = path + "/" + "details.txt";
-                    File details = new File(detailsPath);
-                    boolean boolDetails = details.createNewFile();
-                    if (boolDetails) {
-                        String access;
-                        switch (permission) {
-                            case PUBLIC:
-                                access = "public";
-                                break;
-                            case PRIVATE:
-                                access = "private";
-                                break;
-                            default:
-                                access = "";
-                        }
-                        writeDetails(detailsPath, username, order, access, characteristics);
-                        resp.code = 200;
-                        resp.body = "Image Successfully Uploaded";
-                    } else {
-                        resp.code = 400;
-                        resp.body = "Image details file could not be created";
-                    }
-                } else {
-                    resp.code = 400;
-                    resp.body = "Image directory could not be created";
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                resp.code = 400;
-                resp.body = e.getMessage();
-                e.printStackTrace();
-            }
+            resp.body = e.getMessage();
         }
         return resp;
     }
 
-    private void writeDetails(String path, String username, String order, String access, String[] characteristics) throws IOException {
-        FileWriter writer = new FileWriter(path);
-        writer.write(username);
-        writer.write("\r\n");
-        writer.write(order);
-        writer.write("\r\n");
-        writer.write(access);
-        writer.write("\r\n");
-        String tags = "";
-        for (int i = 0; i < characteristics.length; i++) {
-            tags = tags + characteristics[i];
-            if (i != characteristics.length - 1) {
-                tags = tags + ",";
-            }
+    private void addCharacteristics(PreparedStatement preparedStmt, String[] characteristics, Connection connection) throws SQLException {
+        ResultSet generatedKeys = preparedStmt.getGeneratedKeys();
+        int imageId = 0;
+        if (generatedKeys.next()) {
+            imageId = generatedKeys.getInt(1);
+        } else {
+            throw new SQLException("Creating characteristics failed, no ID obtained.");
+
         }
-        writer.write(tags);
-        writer.close();
+        String query = "Insert into characteristics (image_id, characteristic)" +
+                "values (?, ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        for (int i = 0; i < characteristics.length; i++) {
+            preparedStatement.setInt(1, imageId);
+            preparedStatement.setString(2, characteristics[i]);
+            preparedStatement.execute();
+        }
     }
 
     @Override
-    public Response addMultipleImages(BufferedImage[] images, String username, Permission permission, String[] characteristics) {
+    public Response addMultipleImages(InputStream[] paths, String username, Permission permission,
+                                      String[] characteristics, Connection connection) {
         Response finalResp = new Response();
-        int count = 1;
-        for (BufferedImage img : images) {
-            Response resp = addSingleImage(img, username, permission, characteristics);
-            if (resp.code == 400) {
-                finalResp.code = resp.code;
-                finalResp.body = resp.body;
-                deleteInvalidImages(username, count);
+        Response initResp = new Response();
+        for (InputStream path : paths) {
+            initResp = addSingleImage(path, username, permission, characteristics, connection);
+            if (initResp.code == 400) {
+                finalResp.code = initResp.code;
+                finalResp.body = initResp.body;
                 return finalResp;
             }
-            count++;
         }
-        finalResp.code = 200;
-        finalResp.body = "Images Uploaded Successfully";
+        finalResp.code = initResp.code;
+        finalResp.body = "Images Added Successfully";
         return finalResp;
-    }
-
-    private void deleteInvalidImages(String username, int count) {
-        String path = "src/data/" + username + "/images";
-        File imagesDir = new File(path);
-        if (imagesDir.list().length != 0) {
-            File[] images = imagesDir.listFiles();
-            for (int i = images.length - 1; i >= 0; i--) {
-                if (count == 0) {
-                    break;
-                } else {
-                    deleteFolder(images[i]);
-                    count--;
-                }
-            }
-        }
-    }
-
-    private void deleteFolder(File image) {
-        for (File subFile : image.listFiles()) {
-            if(subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
-        }
-        image.delete();
     }
 
 }

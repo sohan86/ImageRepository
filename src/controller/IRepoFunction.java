@@ -1,12 +1,14 @@
 package controller;
 
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.sql.Connection;
 
 public interface IRepoFunction {
 
-    Response addSingleImage(BufferedImage img, String username, Permission permission, String[] charecteristics);
+    Response addSingleImage(InputStream path, String username, Permission permission, String[] charecteristics, Connection connection);
 
-    Response addMultipleImages(BufferedImage[] images, String username, Permission permission, String[] charecteristics);
+    Response addMultipleImages(InputStream[] paths, String username, Permission permission, String[] charecteristics, Connection connection);
 
 }
 

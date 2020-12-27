@@ -8,30 +8,37 @@ import org.junit.*;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.logging.ConsoleHandler;
 
 public class AddMultipleImagesSpec {
 
     private static Util log;
     private static RepoFunction rf;
-    private static BufferedImage[] images;
+    private static InputStream[] images;
     private static String[] characteristics;
+    private static Connection connection;
+    private static PreparedStatement preparedStmt;
 
     @BeforeClass
     public static void before() {
+        connection = App.connectDatabase();
         log = new Util();
         log.test("Before: Add Multiple Images Spec");
         characteristics = new String[2];
-        characteristics[1] = "cartoon";
-        characteristics[2] = "colorful";
+        characteristics[0] = "cartoon";
+        characteristics[1] = "colorful";
         File imagesDir = new File("test/images");
-        int length = imagesDir.list().length - 1;
-        images = new BufferedImage[length];
+        int length = imagesDir.list().length;
+        images = new InputStream[length];
         int count = 0;
         for (File subFile : imagesDir.listFiles()) {
             try {
                 BufferedImage img = ImageIO.read(subFile);
                 if (img != null) {
-                    images[count] = img;
+                    images[count] = new FileInputStream(subFile.getAbsolutePath());
                     count++;
                 }
             } catch (IOException e) {
@@ -47,7 +54,7 @@ public class AddMultipleImagesSpec {
         rf = new RepoFunction();
         try {
             User user = new User("sohan42", "Sohan1234*", "Sohan");
-            Response resp = user.createUser();
+            Response resp = user.createUser(connection);
             log.test(resp.body);
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -56,42 +63,32 @@ public class AddMultipleImagesSpec {
 
     @After
     public void afterEach() {
-        File dir = new File("src/data");
-        for (File subFile : dir.listFiles()) {
-            if (subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+        String query = "delete from users";
+        try {
+            preparedStmt = connection.prepareStatement(query);
+            preparedStmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         log.test("--Finished a Test");
     }
 
-    static void deleteFolder(File file){
-        for (File subFile : file.listFiles()) {
-            if(subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+    @AfterClass
+    public static void after(){
+        try {
+            preparedStmt.close();
+            connection.close();
+            log.test("After: Login Spec");
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        file.delete();
     }
 
     @Test
     public void addMultipleImages() {
         log.test("Adding Multiple Images");
-        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC, characteristics);
+        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC, characteristics, connection);
         Assert.assertEquals(200, resp.code);
-        log.test(resp.body);
-    }
-
-    @Test
-    public void addMultipleImagesWithOneNull() {
-        log.test("Adding Multiple Images With One Null Image");
-        images[images.length - 1] = null;
-        Response resp = rf.addMultipleImages(images, "sohan42", Permission.PUBLIC, characteristics);
-        Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
 

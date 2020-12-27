@@ -4,10 +4,16 @@ import login.User;
 import org.junit.*;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class UserSpec {
 
     private static Util log;
+    private static Connection connection;
+    private static PreparedStatement preparedStmt;
     private User user;
     private String legalUsername = "sohan42";
     private String legalPassword = "Sohan1234*";
@@ -16,6 +22,7 @@ public class UserSpec {
     @BeforeClass
 
     public static void before() {
+        connection = App.connectDatabase();
         log = new Util();
         log.test("Before: User Spec");
     }
@@ -27,33 +34,34 @@ public class UserSpec {
 
     @After
     public void afterEach() {
-        File dir = new File("src/data");
-        for (File subFile : dir.listFiles()) {
-            if (subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+        String query = "delete from users";
+        try {
+            preparedStmt = connection.prepareStatement(query);
+            preparedStmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+
         log.test("--Finished a Test");
     }
 
-    static void deleteFolder(File file){
-        for (File subFile : file.listFiles()) {
-            if(subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+    @AfterClass
+    public static void after() {
+        try {
+            preparedStmt.close();
+            connection.close();
+            log.test("After: User Spec");
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        file.delete();
+
     }
 
     @Test
     public void createLegalUser() {
         log.test("Creating a Legal User");
         user = new User(legalUsername, legalPassword, legalName);
-        Response resp = user.createUser();
+        Response resp = user.createUser(connection);
         Assert.assertEquals("Sohan", user.getName());
         Assert.assertEquals("sohan42", user.getUsername());
         Assert.assertEquals("Sohan1234*", user.getPassword());
@@ -65,7 +73,7 @@ public class UserSpec {
     public void createUserIllegalName() {
         log.test("Creating User with Illegal Name");
         user = new User(legalUsername, legalPassword, "S0han");
-        Response resp = user.createUser();
+        Response resp = user.createUser(connection);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
@@ -74,7 +82,7 @@ public class UserSpec {
     public void createUserBlankName() {
         log.test("Creating User with Blank Name");
         user = new User(legalUsername, legalPassword, "");
-        Response resp = user.createUser();
+        Response resp = user.createUser(connection);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
@@ -83,7 +91,7 @@ public class UserSpec {
     public void createUserBlankUsername() {
         log.test("Creating User with Blank Username");
         user = new User("", legalPassword, legalName);
-        Response resp = user.createUser();
+        Response resp = user.createUser(connection);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
@@ -92,7 +100,7 @@ public class UserSpec {
     public void createUserBlankPassword() {
         log.test("Creating User with Blank Password");
         user = new User(legalUsername, "", legalName);
-        Response resp = user.createUser();
+        Response resp = user.createUser(connection);
         Assert.assertEquals(400, resp.code);
         log.test(resp.body);
     }
@@ -101,11 +109,11 @@ public class UserSpec {
     public void createUserIdenticalUsername() {
         log.test("Creating User with Identical Username");
         user = new User(legalUsername, legalPassword, legalName);
-        Response resp1 = user.createUser();
+        Response resp1 = user.createUser(connection);
         Assert.assertEquals(200, resp1.code);
         log.test(resp1.body);
         User duplicate = new User(legalUsername, "password", "Mathew");
-        Response resp2 = duplicate.createUser();
+        Response resp2 = duplicate.createUser(connection);
         Assert.assertEquals(400, resp2.code);
         log.test(resp2.body);
     }

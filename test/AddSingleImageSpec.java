@@ -7,31 +7,38 @@ import org.junit.*;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class AddSingleImageSpec {
 
     private static RepoFunction rf;
     private static Util log;
-    private static BufferedImage singleImg;
+    private static String singleImg;
     private static String[] characteristics;
+    private static Connection connection;
+    private static PreparedStatement preparedStmt;
+    private static InputStream in;
 
     @BeforeClass
     public static void before() {
+        connection = App.connectDatabase();
         log = new Util();
         log.test("Before: Add Single Image Spec");
         characteristics = new String[3];
         characteristics[0] = "cartoon";
         characteristics[1] = "spongebob";
         characteristics[2] = "reflective";
-        singleImg = null;
+        singleImg = "test/images/spongebob.jpg";
         try {
-            singleImg = ImageIO.read(new File("test/images/spongebob.jpg"));
-            log.trace("Read Single Image");
-        } catch (IOException e) {
+            in = new FileInputStream(singleImg);
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+        log.trace("Read Single Image");
     }
 
     @Before
@@ -40,7 +47,7 @@ public class AddSingleImageSpec {
         rf = new RepoFunction();
         try {
             User user = new User("sohan42", "Sohan1234*", "Sohan");
-            Response resp = user.createUser();
+            Response resp = user.createUser(connection);
             log.test(resp.body);
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -49,40 +56,31 @@ public class AddSingleImageSpec {
 
     @After
     public void afterEach() {
-        File dir = new File("src/data");
-        for (File subFile : dir.listFiles()) {
-            if (subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+        String query = "delete from users";
+        try {
+            preparedStmt = connection.prepareStatement(query);
+            preparedStmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         log.test("--Finished a Test");
     }
 
-    static void deleteFolder(File file){
-        for (File subFile : file.listFiles()) {
-            if(subFile.isDirectory()) {
-                deleteFolder(subFile);
-            } else {
-                subFile.delete();
-            }
+    @AfterClass
+    public static void after(){
+        try {
+            preparedStmt.close();
+            connection.close();
+            log.test("After: Login Spec");
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        file.delete();
-    }
-
-    @Test
-    public void addNullImage() {
-        log.test("Adding Null Image");
-        Response resp = rf.addSingleImage(null, "sohan42", Permission.PUBLIC, characteristics);
-        Assert.assertEquals(400, resp.code);
-        log.test(resp.body);
     }
 
     @Test
     public void addSingleImage() {
         log.test("Adding Single Image");
-        Response resp = rf.addSingleImage(singleImg, "sohan42", Permission.PUBLIC, characteristics);
+        Response resp = rf.addSingleImage(in, "sohan42", Permission.PUBLIC, characteristics, connection);
         Assert.assertEquals(200, resp.code);
         log.test(resp.body);
     }
